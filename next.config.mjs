@@ -9,6 +9,14 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-}
+  webpack(config) {
+    // Stub out Node's fs module so it won't be bundled into client/Edge code
+    config.resolve.fallback = {
+      ...(config.resolve.fallback || {}),
+      fs: false,
+    };
+    return config;
+  },
+};
 
-export default nextConfig
+export default nextConfig;
