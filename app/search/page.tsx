@@ -11,101 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Filter, Eye, Edit, Trash2, X, Clock, User, Server } from "lucide-react"
 import Link from "next/link"
-
-// Mock data for search
-const mockResources = [
-  {
-    id: 1,
-    regNumber: "PC-REG-2025-001",
-    type: "PC",
-    assignedUser: "Harsh Deo",
-    userRole: "Admin",
-    dateAssigned: "2025-01-01",
-    location: "Room 305",
-    status: "Active",
-    manufacturer: "Dell",
-    model: "OptiPlex 7090",
-    serialNumber: "DL001234",
-  },
-  {
-    id: 2,
-    regNumber: "LAPTOP-REG-2024-089",
-    type: "Laptop",
-    assignedUser: "Rahul Sharma",
-    userRole: "User",
-    dateAssigned: "2024-12-15",
-    location: "Room 412",
-    status: "Active",
-    manufacturer: "HP",
-    model: "EliteBook 840",
-    serialNumber: "HP567890",
-  },
-  {
-    id: 3,
-    regNumber: "SERVER-REG-2025-002",
-    type: "Server",
-    assignedUser: "Power User",
-    userRole: "Power User",
-    dateAssigned: "2025-01-04",
-    location: "Server Room",
-    status: "Active",
-    manufacturer: "HPE",
-    model: "ProLiant DL380",
-    serialNumber: "HPE123456",
-  },
-  {
-    id: 4,
-    regNumber: "PRINTER-REG-2024-156",
-    type: "Printer",
-    assignedUser: "Office Admin",
-    userRole: "User",
-    dateAssigned: "2024-11-20",
-    location: "Room 201",
-    status: "Retired",
-    manufacturer: "Canon",
-    model: "ImageRunner 2530i",
-    serialNumber: "CN789012",
-  },
-]
-
-const mockUsers = [
-  {
-    id: 1,
-    name: "Harsh Deo",
-    email: "harshdeo7543@gmail.com",
-    role: "Admin",
-    designation: "System Administrator",
-    dateCreated: "2024-01-01",
-    roomNumber: "Room 305",
-  },
-  {
-    id: 2,
-    name: "Rahul Sharma",
-    email: "rahul.sharma@example.com",
-    role: "User",
-    designation: "Software Developer",
-    dateCreated: "2024-06-15",
-    roomNumber: "Room 412",
-  },
-  {
-    id: 3,
-    name: "Power User",
-    email: "poweruser@example.com",
-    role: "Power User",
-    designation: "Team Lead",
-    dateCreated: "2024-03-10",
-    roomNumber: "Room 301",
-  },
-  {
-    id: 4,
-    name: "Office Admin",
-    email: "admin@example.com",
-    role: "User",
-    designation: "Administrative Assistant",
-    dateCreated: "2024-08-20",
-    roomNumber: "Room 201",
-  },
-]
+import { getResources } from "@/app/actions/resources"
+import { getUsers } from "@/app/actions/users"
 
 // Recent searches storage
 const getRecentSearches = () => {
@@ -133,16 +40,89 @@ export default function SearchPage() {
   const [userRoleFilter, setUserRoleFilter] = useState("all")
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [recentSearches, setRecentSearches] = useState<string[]>([])
+  const [allResources, setAllResources] = useState<any[]>([])
+  const [allUsers, setAllUsers] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
   const searchParams = useSearchParams()
 
+  // Fetch data from Server Actions
   useEffect(() => {
-    const role = localStorage.getItem("userRole")
-    // if (!role) {
-    //   router.push("/login")
-    //   return
-    // }
-    setUserRole(role)
+    const fetchData = async () => {
+      try {
+        setIsLoading(true)
+        const [resourcesResult, usersResult] = await Promise.all([getResources(), getUsers()])
+
+        if (resourcesResult.success) {
+          // Transform resources to match expected format
+          const transformedResources = resourcesResult.resources.map((resource: any) => ({
+            id: resource.id,
+            regNumber: resource.reg_number,
+            type: resource.resource_type,
+            assignedUser: resource.assigned_user_name || "Unassigned",
+            userRole: resource.assigned_user_role || "",
+            dateAssigned: resource.date_created,
+            location: resource.location || "",
+            status: resource.status,
+            manufacturer: resource.manufacturer || "",
+            model: resource.model || "",
+            serialNumber: resource.serial_number,
+          }))
+          setAllResources(transformedResources)
+        }
+
+        if (usersResult.success) {
+          // Transform users to match expected format
+          const transformedUsers = usersResult.users.map((user: any) => ({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role === "admin" ? "Admin" : user.role === "poweruser" ? "Power User" : "User",
+            designation: user.designation,
+            dateCreated: user.date_created,
+            roomNumber: user.room_number || "",
+          }))
+          setAllUsers(transformedUsers)
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  useEffect(() => {
+    // Get user role from cookies instead of localStorage for consistency
+    const getUserRole = async () => {
+      try {
+        const response = await fetch("/api/auth/me", { credentials: "include" })
+        if (response.ok) {
+          const data = await response.json()
+          setUserRole(data.role)
+        } else {
+          // Fallback to localStorage if API doesn't exist
+          const role = localStorage.getItem("userRole")
+          if (!role) {
+            router.push("/login")
+            return
+          }
+          setUserRole(role)
+        }
+      } catch {
+        // Fallback to localStorage
+        const role = localStorage.getItem("userRole")
+        if (!role) {
+          router.push("/login")
+          return
+        }
+        setUserRole(role)
+      }
+    }
+
+    getUserRole()
     setRecentSearches(getRecentSearches())
 
     // Handle URL search params
@@ -175,7 +155,7 @@ export default function SearchPage() {
   const suggestions = useMemo(() => {
     if (!query.trim()) return []
 
-    const resourceSuggestions = mockResources
+    const resourceSuggestions = allResources
       .filter(
         (resource) =>
           resource.regNumber.toLowerCase().includes(query.toLowerCase()) ||
@@ -192,7 +172,7 @@ export default function SearchPage() {
         icon: Server,
       }))
 
-    const userSuggestions = mockUsers
+    const userSuggestions = allUsers
       .filter(
         (user) =>
           user.name.toLowerCase().includes(query.toLowerCase()) ||
@@ -208,13 +188,13 @@ export default function SearchPage() {
       }))
 
     return [...resourceSuggestions, ...userSuggestions]
-  }, [query])
+  }, [query, allResources, allUsers])
 
   // Filtered search results
   const searchResults = useMemo(() => {
     if (!query.trim()) return { resources: [], users: [] }
 
-    const filteredResources = mockResources.filter((resource) => {
+    const filteredResources = allResources.filter((resource) => {
       const matchesQuery =
         resource.regNumber.toLowerCase().includes(query.toLowerCase()) ||
         resource.assignedUser.toLowerCase().includes(query.toLowerCase()) ||
@@ -234,7 +214,7 @@ export default function SearchPage() {
       return matchesQuery && matchesType && matchesStatus
     })
 
-    const filteredUsers = mockUsers.filter((user) => {
+    const filteredUsers = allUsers.filter((user) => {
       const matchesQuery =
         user.name.toLowerCase().includes(query.toLowerCase()) ||
         user.email.toLowerCase().includes(query.toLowerCase()) ||
@@ -247,13 +227,26 @@ export default function SearchPage() {
     })
 
     return { resources: filteredResources, users: filteredUsers }
-  }, [query, resourceTypeFilter, resourceStatusFilter, userRoleFilter, userRole])
+  }, [query, resourceTypeFilter, resourceStatusFilter, userRoleFilter, userRole, allResources, allUsers])
 
   const totalResults = searchResults.resources.length + searchResults.users.length
 
-  // if (!userRole) {
-  //   return <div>Loading...</div>
-  // }
+  if (!userRole) {
+    return <div>Loading...</div>
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold text-[#2C3E50]">Search</h1>
+            <p className="text-gray-600">Loading search data...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const canEdit = userRole === "admin" || userRole === "poweruser"
   const canDelete = userRole === "admin"
@@ -606,10 +599,7 @@ function ResourceTable({
           {resources.map((resource) => (
             <TableRow key={resource.id}>
               <TableCell className="font-medium">
-                <Link
-                  href={`/resources/${resource.id}`}
-                  className="text-blue-600 hover:underline"
-                >
+                <Link href={`/resources/${resource.id}`} className="text-blue-600 hover:underline">
                   {resource.regNumber}
                 </Link>
               </TableCell>
@@ -617,13 +607,7 @@ function ResourceTable({
               <TableCell>{resource.assignedUser}</TableCell>
               <TableCell>{resource.location}</TableCell>
               <TableCell>
-                <Badge
-                  variant={
-                    resource.status === "Active" ? "default" : "secondary"
-                  }
-                >
-                  {resource.status}
-                </Badge>
+                <Badge variant={resource.status === "Active" ? "default" : "secondary"}>{resource.status}</Badge>
               </TableCell>
               <TableCell>
                 <div className="flex gap-2">
@@ -633,16 +617,14 @@ function ResourceTable({
                     </Button>
                   </Link>
                   {canEdit && (
-                    <Button size="sm" variant="outline">
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <Link href={`/resources/${resource.id}/edit`}>
+                      <Button size="sm" variant="outline">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   )}
                   {canDelete && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-red-600 hover:text-red-700"
-                    >
+                    <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
@@ -653,7 +635,7 @@ function ResourceTable({
         </TableBody>
       </Table>
     </div>
-  );
+  )
 }
 
 // User Table Component
@@ -699,13 +681,17 @@ function UserTable({
               <TableCell>{user.roomNumber}</TableCell>
               <TableCell>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  {canEdit && (
+                  <Link href={`/users/${user.id}`}>
                     <Button size="sm" variant="outline">
-                      <Edit className="h-4 w-4" />
+                      <Eye className="h-4 w-4" />
                     </Button>
+                  </Link>
+                  {canEdit && (
+                    <Link href={`/users/${user.id}/edit`}>
+                      <Button size="sm" variant="outline">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   )}
                   {canDelete && user.role !== "Admin" && (
                     <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
