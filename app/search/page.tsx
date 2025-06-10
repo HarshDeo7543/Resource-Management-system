@@ -105,10 +105,10 @@ export default function SearchPage() {
         } else {
           // Fallback to localStorage if API doesn't exist
           const role = localStorage.getItem("userRole")
-          if (!role) {
-            router.push("/login")
-            return
-          }
+          // if (!role) {
+          //   router.push("/login")
+          //   return
+          // }
           setUserRole(role)
         }
       } catch {
@@ -231,9 +231,9 @@ export default function SearchPage() {
 
   const totalResults = searchResults.resources.length + searchResults.users.length
 
-  if (!userRole) {
-    return <div>Loading...</div>
-  }
+  // if (!userRole) {
+  //   return <div>Loading...</div>
+  // }
 
   if (isLoading) {
     return (
