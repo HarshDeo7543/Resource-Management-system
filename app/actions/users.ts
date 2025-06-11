@@ -48,27 +48,66 @@ export async function createUser(formData: FormData) {
       aadhar_number: formData.get("aadharNumber") as string,
       pan_number: formData.get("panNumber") as string,
       room_number: formData.get("roomNumber") as string,
+      phone_number: formData.get("phoneNumber") as string,
+      country_code: formData.get("countryCode") as string,
+      emergency_contact_name: formData.get("emergencyContactName") as string,
+      emergency_contact_relation: formData.get("emergencyContactRelation") as string,
+      emergency_contact_phone: formData.get("emergencyContactPhone") as string,
+      emergency_country_code: formData.get("emergencyCountryCode") as string,
+      employee_id: formData.get("employeeId") as string,
+      office_location: formData.get("officeLocation") as string,
+      floor: formData.get("floor") as string,
+      desk_number: formData.get("deskNumber") as string,
+      office_phone: formData.get("officePhone") as string,
     }
 
-    const userId = await userModel.create(userData)
-    const currentUser = await getCurrentUser()
+    // Handle profile picture
+    const profilePicture = formData.get("profilePicture") as File
+    if (profilePicture && profilePicture.size > 0) {
+      const userId = await userModel.create(userData)
+      const profilePicturePath = await userModel.saveProfilePicture(userId, profilePicture)
+      await userModel.update(userId, { profile_picture: profilePicturePath })
 
-    // Log activity
-    activityModel.create({
-      action: "Created",
-      entity_type: "user",
-      entity_id: userId,
-      details: `Created user ${userData.name} with role ${userData.role}`,
-      performed_by: currentUser!.id,
-    })
+      const currentUser = await getCurrentUser()
 
-    revalidatePath("/users")
-    revalidatePath("/dashboard")
+      // Log activity
+      activityModel.create({
+        action: "Created",
+        entity_type: "user",
+        entity_id: userId,
+        details: `Created user ${userData.name} with role ${userData.role}`,
+        performed_by: currentUser!.id,
+      })
 
-    return {
-      success: true,
-      message: "User created successfully",
-      userId,
+      revalidatePath("/users")
+      revalidatePath("/dashboard")
+
+      return {
+        success: true,
+        message: "User created successfully",
+        userId,
+      }
+    } else {
+      const userId = await userModel.create(userData)
+      const currentUser = await getCurrentUser()
+
+      // Log activity
+      activityModel.create({
+        action: "Created",
+        entity_type: "user",
+        entity_id: userId,
+        details: `Created user ${userData.name} with role ${userData.role}`,
+        performed_by: currentUser!.id,
+      })
+
+      revalidatePath("/users")
+      revalidatePath("/dashboard")
+
+      return {
+        success: true,
+        message: "User created successfully",
+        userId,
+      }
     }
   } catch (error) {
     console.error("Create user error:", error)
@@ -77,58 +116,88 @@ export async function createUser(formData: FormData) {
 }
 
 export async function updateUser(id: number, formData: FormData) {
-  await requireRole(["admin", "poweruser"])
+  const currentUser = await getCurrentUser()
 
-  // Fetch target user
-  const target = userModel.getById(id)
-  if (!target) {
-    return { success: false, message: "User not found" }
-  }
+  // Check if the user is updating their own profile or if they're an admin
+  const isOwnProfile = currentUser?.id === id
+  const isAdmin = currentUser?.role === "admin"
 
-  const currentUser = await getCurrentUser()!
-  const currentRole = currentUser.role
-
-  // Define hierarchy by array index: lower === less privilege
-  const hierarchy = ["user", "poweruser", "admin"]
-  const currentIndex = hierarchy.indexOf(currentRole)
-  const targetIndex = hierarchy.indexOf(target.role)
-
-  // Block if not admin AND current role is <= target role
-  if (currentRole !== "admin" && currentIndex <= targetIndex) {
-    return {
-      success: false,
-      message: "You do not have permission to modify this user."
-    }
+  if (!isOwnProfile && !isAdmin) {
+    return { success: false, message: "You don't have permission to update this user" }
   }
 
   try {
-    const userData: UserUpdateInput = {
-      name: formData.get("name") as string,
-      email: formData.get("email") as string,
-      role: formData.get("role") as "admin" | "poweruser" | "user",
-      designation: formData.get("designation") as string,
-      dob: formData.get("dob") as string,
-      aadhar_number: formData.get("aadharNumber") as string,
-      pan_number: formData.get("panNumber") as string,
-      room_number: formData.get("roomNumber") as string,
+    let userData: UserUpdateInput = {}
+
+    // If admin, allow updating all fields
+    if (isAdmin) {
+      userData = {
+        name: formData.get("name") as string,
+        email: formData.get("email") as string,
+        role: formData.get("role") as "admin" | "poweruser" | "user",
+        designation: formData.get("designation") as string,
+        dob: formData.get("dob") as string,
+        aadhar_number: formData.get("aadharNumber") as string,
+        pan_number: formData.get("panNumber") as string,
+        room_number: formData.get("roomNumber") as string,
+        phone_number: formData.get("phoneNumber") as string,
+        country_code: formData.get("countryCode") as string,
+        emergency_contact_name: formData.get("emergencyContactName") as string,
+        emergency_contact_relation: formData.get("emergencyContactRelation") as string,
+        emergency_contact_phone: formData.get("emergencyContactPhone") as string,
+        emergency_country_code: formData.get("emergencyCountryCode") as string,
+        employee_id: formData.get("employeeId") as string,
+        office_location: formData.get("officeLocation") as string,
+        floor: formData.get("floor") as string,
+        desk_number: formData.get("deskNumber") as string,
+        office_phone: formData.get("officePhone") as string,
+      }
+    } else {
+      // For regular users, only allow updating optional fields
+      userData = {
+        pan_number: formData.get("panNumber") as string,
+        room_number: formData.get("roomNumber") as string,
+        phone_number: formData.get("phoneNumber") as string,
+        country_code: formData.get("countryCode") as string,
+        emergency_contact_name: formData.get("emergencyContactName") as string,
+        emergency_contact_relation: formData.get("emergencyContactRelation") as string,
+        emergency_contact_phone: formData.get("emergencyContactPhone") as string,
+        emergency_country_code: formData.get("emergencyCountryCode") as string,
+        employee_id: formData.get("employeeId") as string,
+        office_location: formData.get("officeLocation") as string,
+        floor: formData.get("floor") as string,
+        desk_number: formData.get("deskNumber") as string,
+        office_phone: formData.get("officePhone") as string,
+      }
     }
 
+    // Password can be updated by any user (their own)
     const password = formData.get("password") as string
-    if (password) userData.password = password
+    if (password) {
+      userData.password = password
+    }
+
+    // Handle profile picture
+    const profilePicture = formData.get("profilePicture") as File
+    if (profilePicture && profilePicture.size > 0) {
+      const profilePicturePath = await userModel.saveProfilePicture(id, profilePicture)
+      userData.profile_picture = profilePicturePath
+    }
 
     await userModel.update(id, userData)
-    const refresher = await getCurrentUser()!
 
+    // Log activity
     activityModel.create({
       action: "Updated",
       entity_type: "user",
       entity_id: id,
-      details: `Updated user ${userData.name || "profile"}`,
-      performed_by: refresher.id,
+      details: isAdmin ? `Updated user profile` : `Updated own profile`,
+      performed_by: currentUser!.id,
     })
 
     revalidatePath("/users")
     revalidatePath(`/users/${id}`)
+    revalidatePath("/settings")
     revalidatePath("/dashboard")
 
     return { success: true, message: "User updated successfully" }
@@ -138,39 +207,31 @@ export async function updateUser(id: number, formData: FormData) {
   }
 }
 
-
-
 export async function deleteUser(id: number) {
-  await requireRole(["admin", "poweruser"])
-
-  const target = userModel.getById(id)
-  if (!target) {
-    return { success: false, message: "User not found" }
-  }
-
-  const currentUser = await getCurrentUser()!
-  const currentRole = currentUser.role
-
-  const hierarchy = ["user", "poweruser", "admin"]
-  const currentIndex = hierarchy.indexOf(currentRole)
-  const targetIndex = hierarchy.indexOf(target.role)
-
-  if (currentRole !== "admin" && currentIndex <= targetIndex) {
-    return { success: false, message: "You do not have permission to delete this user." }
-  }
-
-  if (currentUser.id === id) {
-    return { success: false, message: "You cannot delete your own account" }
-  }
+  await requireRole(["admin"])
 
   try {
+    const user = userModel.getById(id)
+
+    if (!user) {
+      return { success: false, message: "User not found" }
+    }
+
+    // Prevent deleting yourself
+    const currentUser = await getCurrentUser()
+    if (currentUser?.id === id) {
+      return { success: false, message: "You cannot delete your own account" }
+    }
+
     userModel.delete(id)
+
+    // Log activity
     activityModel.create({
       action: "Deleted",
       entity_type: "user",
       entity_id: id,
-      details: `Deleted user ${target.name}`,
-      performed_by: currentUser.id,
+      details: `Deleted user ${user.name}`,
+      performed_by: currentUser!.id,
     })
 
     revalidatePath("/users")
@@ -182,7 +243,6 @@ export async function deleteUser(id: number) {
     return { success: false, message: "Failed to delete user" }
   }
 }
-
 
 export async function searchUsers(query: string) {
   await requireRole(["admin", "poweruser"])

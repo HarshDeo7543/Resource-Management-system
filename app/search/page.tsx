@@ -13,6 +13,7 @@ import { Search, Filter, Eye, Edit, Trash2, X, Clock, User, Server } from "lucid
 import Link from "next/link"
 import { getResources } from "@/app/actions/resources"
 import { getUsers } from "@/app/actions/users"
+import DeleteUserButton from "@/components/delete-user-button"
 
 // Recent searches storage
 const getRecentSearches = () => {
@@ -105,10 +106,10 @@ export default function SearchPage() {
         } else {
           // Fallback to localStorage if API doesn't exist
           const role = localStorage.getItem("userRole")
-          // if (!role) {
-          //   router.push("/login")
-          //   return
-          // }
+          if (!role) {
+            router.push("/login")
+            return
+          }
           setUserRole(role)
         }
       } catch {
@@ -129,7 +130,7 @@ export default function SearchPage() {
     const urlQuery = searchParams.get("q")
     if (urlQuery) {
       setQuery(urlQuery)
-      handleSearch(urlQuery)
+      // handleSearch(urlQuery)
     }
   }, [router, searchParams])
 
@@ -693,11 +694,7 @@ function UserTable({
                       </Button>
                     </Link>
                   )}
-                  {canDelete && user.role !== "Admin" && (
-                    <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
+                  {canDelete && user.role !== "Admin" && <DeleteUserButton id={user.id} name={user.name} />}
                 </div>
               </TableCell>
             </TableRow>

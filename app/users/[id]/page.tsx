@@ -10,6 +10,7 @@ import { Edit, ArrowLeft, User, Calendar, MapPin, CreditCard, FileText } from "l
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import { notFound } from "next/navigation"
+import Image from "next/image"
 
 export default async function UserDetailPage({ params }: { params: { id: string } }) {
   // Only admin and power users can view user details
@@ -18,7 +19,7 @@ export default async function UserDetailPage({ params }: { params: { id: string 
 
   const userId = Number.parseInt(params.id)
   const { user } = await getUserById(userId)
-  const { activities } = await getActivitiesByUser(userId)
+  const { activities } = await getActivitiesByUser(userId, 10) // Get more activities
   const { resources } = await getResourcesByUserId(userId)
 
   if (!user) {
@@ -60,8 +61,18 @@ export default async function UserDetailPage({ params }: { params: { id: string 
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col items-center mb-6">
-                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-                  <User className="h-12 w-12 text-gray-500" />
+                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-4 overflow-hidden">
+                  {user.profile_picture ? (
+                    <Image
+                      src={user.profile_picture || "/placeholder.svg"}
+                      alt={`${user.name}'s profile`}
+                      width={96}
+                      height={96}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-12 w-12 text-gray-500" />
+                  )}
                 </div>
                 <h3 className="text-xl font-semibold">{user.name}</h3>
                 <p className="text-gray-500">{user.designation}</p>
@@ -78,6 +89,18 @@ export default async function UserDetailPage({ params }: { params: { id: string 
                   </div>
                 </div>
 
+                {user.employee_id && (
+                  <div className="flex items-start gap-3">
+                    <div className="bg-gray-100 p-2 rounded-md">
+                      <CreditCard className="h-4 w-4 text-gray-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Employee ID</p>
+                      <p className="text-sm text-gray-600">{user.employee_id}</p>
+                    </div>
+                  </div>
+                )}
+
                 {user.dob && (
                   <div className="flex items-start gap-3">
                     <div className="bg-gray-100 p-2 rounded-md">
@@ -90,14 +113,32 @@ export default async function UserDetailPage({ params }: { params: { id: string 
                   </div>
                 )}
 
-                {user.room_number && (
+                {user.phone_number && (
+                  <div className="flex items-start gap-3">
+                    <div className="bg-gray-100 p-2 rounded-md">
+                      <User className="h-4 w-4 text-gray-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Phone Number</p>
+                      <p className="text-sm text-gray-600">
+                        {user.country_code === "IN" ? "+91" : "+1"} {user.phone_number}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {(user.office_location || user.room_number) && (
                   <div className="flex items-start gap-3">
                     <div className="bg-gray-100 p-2 rounded-md">
                       <MapPin className="h-4 w-4 text-gray-500" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium">Room / Office</p>
-                      <p className="text-sm text-gray-600">{user.room_number}</p>
+                      <p className="text-sm font-medium">Office Location</p>
+                      <p className="text-sm text-gray-600">
+                        {user.office_location && user.room_number
+                          ? `${user.office_location} - ${user.room_number}`
+                          : user.office_location || user.room_number}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -143,15 +184,41 @@ export default async function UserDetailPage({ params }: { params: { id: string 
 
           <Card className="lg:col-span-2">
             <CardHeader>
-              <Tabs defaultValue="resources">
+              <Tabs defaultValue="activities">
                 <TabsList>
-                  <TabsTrigger value="resources">Assigned Resources ({resources.length})</TabsTrigger>
                   <TabsTrigger value="activities">Recent Activities ({activities.length})</TabsTrigger>
+                  <TabsTrigger value="resources">Assigned Resources ({resources.length})</TabsTrigger>
                 </TabsList>
               </Tabs>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="resources">
+              <Tabs defaultValue="activities">
+                <TabsContent value="activities" className="mt-0">
+                  {activities.length > 0 ? (
+                    <div className="space-y-4">
+                      {activities.map((activity) => (
+                        <div
+                          key={activity.id}
+                          className="flex items-center justify-between py-3 px-4 border rounded-lg hover:bg-gray-50"
+                        >
+                          <div>
+                            <p className="font-medium">
+                              {activity.action} {activity.entity_type}
+                            </p>
+                            {activity.details && <p className="text-sm text-gray-600 mt-1">{activity.details}</p>}
+                          </div>
+                          <p className="text-sm text-gray-500">
+                            {formatDistanceToNow(new Date(activity.date_performed), { addSuffix: true })}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">No recent activities for this user.</p>
+                    </div>
+                  )}
+                </TabsContent>
                 <TabsContent value="resources" className="mt-0">
                   {resources.length > 0 ? (
                     <div className="overflow-x-auto">
@@ -193,31 +260,6 @@ export default async function UserDetailPage({ params }: { params: { id: string 
                   ) : (
                     <div className="text-center py-8">
                       <p className="text-gray-500">No resources assigned to this user.</p>
-                    </div>
-                  )}
-                </TabsContent>
-                <TabsContent value="activities" className="mt-0">
-                  {activities.length > 0 ? (
-                    <div className="space-y-4">
-                      {activities.map((activity) => (
-                        <div
-                          key={activity.id}
-                          className="flex items-center justify-between py-2 border-b last:border-b-0"
-                        >
-                          <div>
-                            <p className="font-medium">
-                              {activity.action} {activity.entity_type} {activity.details ? `(${activity.details})` : ""}
-                            </p>
-                          </div>
-                          <p className="text-sm text-gray-500">
-                            {formatDistanceToNow(new Date(activity.date_performed), { addSuffix: true })}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">No recent activities for this user.</p>
                     </div>
                   )}
                 </TabsContent>
