@@ -110,7 +110,7 @@ export default function Navigation({ userRole, userName }: NavigationProps) {
           </div>
           {!isCollapsed && (
             <div>
-              <h1 className="text-white font-bold text-lg">ResourcePortal</h1>
+              <h1 className="text-white font-bold text-lg">संसाधन पोर्टल</h1>
             </div>
           )}
         </div>
