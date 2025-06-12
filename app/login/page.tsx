@@ -1,16 +1,26 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState } from "react"
 import { useRouter } from "next/navigation"
+import { cn } from "@/lib/utils"
+import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+} from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { login } from "@/app/actions/auth"
 import { Loader2 } from "lucide-react"
+import { BorderBeam } from "@/components/magicui/border-beam"
+import { LineShadowText } from "@/components/magicui/line-shadow-text"
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -38,28 +48,48 @@ export default function LoginPage() {
         setError(result.message || "Login failed")
       }
     } catch (err) {
+      console.error("Login error:", err)
       setError("An unexpected error occurred")
-      console.error(err)
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-[#2C3E50]">ResourcePortal</CardTitle>
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gray-50">
+      {/* Animated background full-screen */}
+      <AnimatedGridPattern
+        numSquares={30}
+        maxOpacity={0.3}
+        duration={3}
+        repeatDelay={1}
+        className={cn(
+          "absolute inset-0",
+          // optional mask to fade edges; adjust or remove if undesired:
+          "[mask-image:radial-gradient(closest-side_at_center,white,transparent)]"
+        )}
+      />
+
+      {/* Login card, above the animated background */}
+      <Card className="relative w-[400px] max-w-full overflow-hidden">
+        {/* Animated border/beam behind card content */}
+        <BorderBeam duration={8} size={500} />
+
+        <CardHeader className="text-center z-10">
+          <CardTitle> <LineShadowText className="text-2xl font-bold text-[#2C3E50]">
+              ResourcePortal
+            </LineShadowText></CardTitle>
           <CardDescription>Sign in to your account</CardDescription>
         </CardHeader>
-        <CardContent>
+
+        <CardContent className="z-10">
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="you@domain.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -70,6 +100,7 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -82,7 +113,11 @@ export default function LoginPage() {
               </Alert>
             )}
 
-            <Button type="submit" className="w-full bg-[#3498DB] hover:bg-[#2980B9]" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full bg-[#3498DB] hover:bg-[#2980B9]"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -94,18 +129,20 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <Alert className="mt-4">
+          <Alert className="mt-4 z-10">
             <AlertDescription className="text-sm text-gray-600">
-              <strong>Demo Credentials:</strong>
-              <br />
-              Admin: harshdeo7543@gmail.com / 12345678
-              <br />
-              Power User: poweruser@example.com / 12345678
-              <br />
-              User: user@example.com / 12345678
+              <strong>Contact Admin to get Your Login Credentials</strong>
             </AlertDescription>
           </Alert>
         </CardContent>
+
+        {/* Register button removed per your request */}
+        {/* 
+        <CardFooter className="flex justify-between z-10">
+          <Button variant="outline">Register</Button>
+          <Button>Login</Button>
+        </CardFooter>
+        */}
       </Card>
     </div>
   )
