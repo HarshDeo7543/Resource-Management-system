@@ -43,7 +43,7 @@ A comprehensive resource management portal for IT assets and user management wit
 
 - **Frontend**: Next.js 14, React 18, TypeScript
 - **Backend**: Next.js API Routes, Server Actions
-- **Database**: SQLite with better-sqlite3
+- **Database**: SQLite with better-sqlite3 (For Development) & PostgreSQL used for Production
 - **UI Components**: shadcn/ui, Tailwind CSS
 - **Authentication**: Custom implementation with bcrypt
 - **Icons**: Lucide React
